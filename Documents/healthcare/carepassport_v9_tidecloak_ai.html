@@ -525,6 +525,25 @@
             body.landing-page #welcome-view > main > p { font-size: .9rem !important; line-height: 1.35 !important; margin-bottom: .65rem !important; }
             body.landing-page #welcome-view .role-card { padding: .6rem !important; }
         }
+
+/* TideCloak assistant: isolated styles, preserving existing layout */
+#tc-agent-launch {position:fixed;right:22px;bottom:22px;z-index:80;display:flex;align-items:center;gap:10px;padding:13px 17px;border:1px solid rgba(94,234,212,.35);border-radius:999px;background:linear-gradient(135deg,#0f766e,#115e59);color:#fff;box-shadow:0 15px 40px #0004;font:600 14px Inter,sans-serif;cursor:pointer}
+#tc-agent-launch:hover{filter:brightness(1.1)}
+#tc-agent-panel{position:fixed;right:22px;bottom:88px;width:min(390px,calc(100vw - 24px));height:min(570px,calc(100dvh - 112px));z-index:81;display:none;flex-direction:column;overflow:hidden;border:1px solid #475569;border-radius:20px;background:#0f172a;color:#f8fafc;box-shadow:0 25px 75px #0008;font:14px Inter,sans-serif}
+#tc-agent-panel.tc-open{display:flex}
+#tc-agent-header{padding:16px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(120deg,#115e59,#0f172a);border-bottom:1px solid #334155}
+#tc-agent-messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.tc-message{max-width:90%;padding:11px 13px;border-radius:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.tc-bot{align-self:flex-start;background:#1e293b;border:1px solid #334155}
+.tc-user{align-self:flex-end;background:#0f766e}
+#tc-agent-suggestions{display:flex;gap:7px;padding:8px 12px;overflow-x:auto}
+.tc-suggestion{flex:none;border:1px solid #0f766e;border-radius:999px;padding:7px 10px;color:#99f6e4;background:#134e4a55;font-size:11px;cursor:pointer}
+#tc-agent-form{display:flex;gap:8px;padding:12px;border-top:1px solid #334155}
+#tc-agent-input{min-width:0;flex:1;background:#1e293b;color:white;border:1px solid #475569;border-radius:10px;padding:11px;outline-offset:2px}
+#tc-agent-send{background:#0d9488;color:white;border:0;border-radius:10px;padding:0 15px;cursor:pointer}
+#tc-agent-send:disabled{opacity:.5;cursor:wait}
+@media(max-width:480px){#tc-agent-launch{right:12px;bottom:12px}#tc-agent-panel{right:12px;bottom:76px}}
+
     </style>
 </head>
 <body class="landing-page h-full bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200 antialiased flex flex-col">
@@ -2144,5 +2163,61 @@
       return cpOpenModal.call(this,id,...args);
     };
     </script>
+
+<!-- TideCloak AI assistant: no patient data is transmitted automatically. -->
+<button id="tc-agent-launch" type="button" onclick="TideAgent.toggle()" aria-label="Open TideCloak AI assistant" aria-expanded="false"><i class="fa-solid fa-robot" aria-hidden="true"></i> TideCloak <span style="font-size:10px;opacity:.8">AI</span></button>
+<section id="tc-agent-panel" role="dialog" aria-label="TideCloak assistant" aria-modal="false">
+  <div id="tc-agent-header"><div style="display:flex;gap:10px;align-items:center"><span style="font-size:22px;color:#5eead4"><i class="fa-solid fa-shield-heart"></i></span><div><strong style="display:block;font-size:16px">TideCloak</strong><small style="color:#99f6e4">CarePassport assistant</small></div></div><button type="button" onclick="TideAgent.toggle(false)" aria-label="Close assistant" style="background:transparent;border:0;color:white;cursor:pointer;font-size:18px"><i class="fa-solid fa-xmark"></i></button></div>
+  <div id="tc-agent-messages" aria-live="polite"></div>
+  <div id="tc-agent-suggestions"><button type="button" class="tc-suggestion" onclick="TideAgent.ask('How do I share a record?')">Sharing records</button><button type="button" class="tc-suggestion" onclick="TideAgent.ask('Explain consent policies')">Consent policies</button><button type="button" class="tc-suggestion" onclick="TideAgent.ask('How does TideCloak sign in work?')">TideCloak login</button></div>
+  <form id="tc-agent-form" onsubmit="TideAgent.submit(event)"><input id="tc-agent-input" maxlength="1500" autocomplete="off" placeholder="Ask about CarePassport..." aria-label="Message to TideCloak" required><button id="tc-agent-send" type="submit" aria-label="Send message"><i class="fa-solid fa-paper-plane"></i></button></form>
+  <div style="padding:0 12px 10px;color:#94a3b8;font-size:10px">Demo data only. Do not enter real patient details. AI answers are informational, not medical advice.</div>
+</section>
+<script>
+const TideAgent = {
+  busy:false, initialized:false, history:[],
+  toggle(force){
+    const panel=document.getElementById('tc-agent-panel');
+    const open=typeof force==='boolean'?force:!panel.classList.contains('tc-open');
+    panel.classList.toggle('tc-open',open);
+    document.getElementById('tc-agent-launch').setAttribute('aria-expanded',String(open));
+    if(open){if(!this.initialized){this.initialized=true;this.message('bot','Hi! I’m TideCloak, your CarePassport assistant. I can guide you through records, sharing permissions, and account security. With an AI server configured, I can also answer open-ended questions. Please use demo data only.');}document.getElementById('tc-agent-input').focus();}
+  },
+  message(who,text){
+    const el=document.createElement('div');el.className='tc-message '+(who==='user'?'tc-user':'tc-bot');el.textContent=text;
+    const list=document.getElementById('tc-agent-messages');list.appendChild(el);list.scrollTop=list.scrollHeight;
+    return el;
+  },
+  ask(q){this.toggle(true);document.getElementById('tc-agent-input').value=q;this.send(q);},
+  submit(e){e.preventDefault();const input=document.getElementById('tc-agent-input');const q=input.value.trim();if(q)this.send(q);},
+  guide(q){
+    const x=q.toLowerCase();
+    if(/share|grant|consent|chia sẻ|cấp quyền/.test(x))return 'To share a demo record: sign in with a Patient role, open Access Control, select Grant New Share, choose the recipient and scope, then set an expiration. The current prototype stores grants in the browser; a real backend must enforce them.';
+    if(/policy|rule|quy tắc|chính sách/.test(x))return 'Consent policies describe who may access which records, for what purpose and how long. Open Policy Engine to inspect demo rules. Client-side checks are not a substitute for server-enforced authorization.';
+    if(/login|sign in|tidecloak|keycloak|đăng nhập|authentication/.test(x))return 'CarePassport uses OIDC Authorization Code with PKCE for sign-in against the configured local TideCloak/Keycloak realm. Tide MCP is a development integration, not a browser chatbot or a guarantee of encrypted records.';
+    if(/record|vault|upload|hồ sơ|tải lên/.test(x))return 'Open Health Vault to browse demo records. Patients can use Upload New Document. This prototype is not connected to secure clinical storage: never upload real medical files.';
+    if(/emergency|break.glass|khẩn cấp/.test(x))return 'Emergency Break-Glass is a simulated provider workflow. A real implementation needs independently verified emergency privileges, short-lived access, audit logging, and review.';
+    if(/who|role|permission|quyền|vai trò/.test(x))return 'The three demo roles are Patient, Caregiver, and Provider. Real access must be enforced on the server using verified identity, record ownership, and consent—not by the role selector alone.';
+    return 'I can guide you on CarePassport records, consent sharing, TideCloak sign-in, role permissions, and emergency access. For open-ended AI answers, run the optional local AI server with an API key. Please avoid sharing personal health data.';
+  },
+  async send(q){
+    if(this.busy)return;
+    const input=document.getElementById('tc-agent-input');input.value='';
+    this.message('user',q);this.busy=true;document.getElementById('tc-agent-send').disabled=true;
+    const wait=this.message('bot','Thinking…');
+    try{
+      // Only the typed question is sent. No OIDC token, profile, or medical records.
+      const response=await fetch('/api/agent/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,history:this.history.slice(-6)})});
+      if(!response.ok)throw Error('AI service unavailable');
+      const result=await response.json();if(typeof result.reply!=='string'||!result.reply.trim())throw Error('Empty response');
+      wait.textContent=result.reply;
+    }catch(e){wait.textContent=this.guide(q)+'\n\n(Offline guidance mode — start the optional AI server for generated responses.)';}
+    this.history.push({role:'user',content:q},{role:'assistant',content:wait.textContent});this.history=this.history.slice(-8);
+    this.busy=false;document.getElementById('tc-agent-send').disabled=false;
+    document.getElementById('tc-agent-messages').scrollTop=document.getElementById('tc-agent-messages').scrollHeight;
+  }
+};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('tc-agent-panel').classList.contains('tc-open'))TideAgent.toggle(false);});
+</script>
 </body>
 </html>
